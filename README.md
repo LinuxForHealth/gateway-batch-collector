@@ -1,1 +1,1 @@
-# whpa-cdp-gateway-batch-collector
+# CDP Gateway - Batch Collector
