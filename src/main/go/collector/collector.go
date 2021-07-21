@@ -113,14 +113,14 @@ func readConfigFromEnv() config {
 		c.subjectNameOut = strings.Join([]string{c.streamName, "batched"}, ".")
 	}
 	c.queueName = os.Getenv("NATS_QUEUE_NAME")
-	batchSizeEnvVar := os.Getenv("HL7_BATCH_SIZE")
+	batchSizeEnvVar := os.Getenv("MSG_BATCH_SIZE")
 	c.batchSize = uint64(100) // we just keep using 100 as an example
 	if batchSizeEnvVar != "" {
 		parsedEnvVar, err := strconv.ParseUint(batchSizeEnvVar, 10, 64)
 		fatalError(err)
 		c.batchSize = parsedEnvVar
 	}
-	timeoutEnvVar := os.Getenv("HL7_BATCH_TIMEOUT")
+	timeoutEnvVar := os.Getenv("MSG_BATCH_TIMEOUT")
 	defaultTimeout, err := time.ParseDuration("60s")
 	fatalError(err)
 	c.timeout = defaultTimeout

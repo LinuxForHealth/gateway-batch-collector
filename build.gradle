@@ -74,10 +74,28 @@ task goClean(type: Exec) {
     commandLine 'rm', '-rf', 'build'
 }
 
+/**
+ * This task builds for the running OS and arch by default!
+ * The executable will not run in a linux-based container if built on mac
+ * without setting GOOS=linux and GOARCH=amd64 or other correct arch
+ * Use goBuildLinux64 for convenience when building for docker on mac
+ */
 task goBuild(type: Exec) {
     def current_path = System.getProperty("user.dir")
     workingDir 'src/main/go/collector'
     commandLine 'go', 'build', '-o', current_path+'/build/'
+}
+
+task goBuildLinux64(type: Exec) {
+    environment "GOOS", "linux"
+    environment "GOARCH", "amd64"
+    def current_path = System.getProperty("user.dir")
+    workingDir 'src/main/go/collector'
+    commandLine 'go', 'build', '-o', current_path+'/build/'
+}
+
+task dockerBuild(type: Exec) {
+    commandLine 'docker', 'build', '.', '-t', 'whpa-cdp-gateway-batch-collector:latest'
 }
 
 task goPublish (type: Exec) {
@@ -98,6 +116,9 @@ task publish {}
 project.tasks.goTest.dependsOn project.tasks.goTestPrepare
 project.tasks.goBuild.dependsOn project.tasks.goTest
 project.tasks.build.dependsOn project.tasks.test
+
+project.tasks.goBuildLinux64.dependsOn project.tasks.goTest
+project.tasks.dockerBuild.dependsOn project.tasks.goBuildLinux64
 
 project.tasks.build.finalizedBy project.tasks.goBuild
 project.tasks.test.finalizedBy project.tasks.goTest
