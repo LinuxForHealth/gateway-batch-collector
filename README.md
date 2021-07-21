@@ -56,3 +56,14 @@ Setting `NATS_DURABLE_NAME` allows the nats server to track the collector so tha
 an interruption due to a crash or restart. However, when using this setting, configuration changes may require the old
 consumer configuration to be removed with `nats consumer rm`. When using docker-compose, you may want to just delete the
 containers and recreate them when making changes related to consumer configuration.
+
+### Test Procedures
+
+The nats cli provides an easy way to test the batch and timeout features by publishing with `nats pub`.
+
+```
+nats pub HL7.incoming "message {{.Count}} @ {{.TimeStamp}}" --count=10101
+```
+
+The above publishes 10,101 messages to `HL7.incoming`. With a batch size of 100 and a 60s timeout, you
+should see 101 full batches right away, and then a single message 60 seconds later 
