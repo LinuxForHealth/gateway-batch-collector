@@ -58,33 +58,15 @@ func main() {
 	js.Subscribe(c.subjectNameIn, func(msg *nats.Msg) {
 		msgBuffer <- *msg
 	}, nats.ManualAck(), nats.AckAll(), nats.MaxAckPending(int(c.batchSize)+1), nats.AckWait(c.timeout*2), nats.Durable(c.durableName))
+	batchChannel := make(chan batchAndLastMsg)
+	go collectBatches(c, msgBuffer, batchChannel)
 	for {
-		batch := make([]nats.Msg, 0)
-		t := time.After(c.timeout)
-	out:
-		for {
-			select {
-			case m := <-msgBuffer:
-				batch = append(batch, m)
-				if len(batch) >= int(c.batchSize) {
-					log.Printf("%d messages recieved. Proceeding with full batch", len(batch))
-					break out
-				}
-				t = time.After(c.timeout)
-			case <-t:
-				if len(batch) > 0 {
-					log.Printf("Batch timeout exceeded. Proceeding with %d messages", len(batch))
-					break out
-				}
-				log.Printf("No messages in %q, queue is empty", c.timeout.String())
-				t = time.After(c.timeout)
-			}
-		}
-		pubAck, err := js.Publish(c.subjectNameOut, zipBatch(batch))
+		batchAndMsg := <-batchChannel
+		pubAck, err := js.Publish(c.subjectNameOut, batchAndMsg.batch)
 		logError(err)
 		if err == nil {
 			log.Printf("Published zipped batch to %q, sequence = %d", c.subjectNameOut, pubAck.Sequence)
-			err := batch[len(batch)-1].AckSync()
+			err := batchAndMsg.lastMsg.AckSync()
 			logError(err)
 		}
 	}
@@ -175,4 +157,36 @@ func zipBatch(messages []nats.Msg) []byte {
 	err := w.Close()
 	logError(err)
 	return b.Bytes()
+}
+
+type batchAndLastMsg struct {
+	batch   []byte
+	lastMsg nats.Msg
+}
+
+func collectBatches(c config, msgBuffer chan nats.Msg, output chan batchAndLastMsg) {
+	for {
+		batch := make([]nats.Msg, 0)
+		t := time.After(c.timeout)
+	out:
+		for {
+			select {
+			case m := <-msgBuffer:
+				batch = append(batch, m)
+				if len(batch) >= int(c.batchSize) {
+					log.Printf("%d messages recieved. Proceeding with full batch", len(batch))
+					break out
+				}
+				t = time.After(c.timeout)
+			case <-t:
+				if len(batch) > 0 {
+					log.Printf("Batch timeout exceeded. Proceeding with %d messages", len(batch))
+					break out
+				}
+				log.Printf("No messages in %q, queue is empty", c.timeout.String())
+				t = time.After(c.timeout)
+			}
+		}
+		output <- batchAndLastMsg{zipBatch(batch), batch[len(batch)-1]}
+	}
 }
