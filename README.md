@@ -50,6 +50,10 @@ but other vars can be configured in `docker-compose.yml`. The current default co
       NATS_DURABLE_NAME: "batchCollector"
 ```
 
+`NATS_STREAM_NAME`, when set, causes the collector to create the stream if it doesn't exist. Unset this
+variable if your stream configuration will be done ahead of time by another process. In that case, the
+collector process will terminate if the necessary streams do not exist for the configured subjects.
+
 Setting `NATS_QUEUE_NAME` will add the collector to a queue group (https://docs.nats.io/nats-concepts/queue)
 
 Setting `NATS_DURABLE_NAME` allows the nats server to track the collector so that everything can pick back up after

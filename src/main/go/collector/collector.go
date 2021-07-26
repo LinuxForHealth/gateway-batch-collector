@@ -17,6 +17,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -37,16 +38,22 @@ func main() {
 	defer nc.Close()
 	js, err := nc.JetStream(nats.PublishAsyncMaxPending(256))
 	fatalError(err)
-	stream, err := js.StreamInfo(c.streamName)
-	logError(err)
-	if stream == nil {
-		log.Printf("creating stream %q and subjects %q and %q", c.streamName, c.subjectNameIn, c.subjectNameOut)
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:     c.streamName,
-			Subjects: []string{c.subjectNameIn, c.subjectNameOut},
-		})
-		fatalError(err)
+	if c.streamName != "" {
+		stream, err := js.StreamInfo(c.streamName)
+		logError(err)
+		if stream == nil {
+			log.Printf("creating stream %q and subjects %q and %q", c.streamName, c.subjectNameIn, c.subjectNameOut)
+			_, err = js.AddStream(&nats.StreamConfig{
+				Name:     c.streamName,
+				Subjects: []string{c.subjectNameIn, c.subjectNameOut},
+			})
+			fatalError(err)
+		}
 	}
+	err = checkStreamExists(c.subjectNameIn, js)
+	fatalError(err)
+	err = checkStreamExists(c.subjectNameOut, js)
+	fatalError(err)
 	msgBuffer := make(chan nats.Msg, c.batchSize*2)
 	js.Subscribe(c.subjectNameIn, func(msg *nats.Msg) {
 		msgBuffer <- *msg
@@ -101,9 +108,6 @@ func readConfigFromEnv() config {
 		c.natsUrl = nats.DefaultURL
 	}
 	c.streamName = os.Getenv("NATS_STREAM_NAME")
-	if c.streamName == "" {
-		c.streamName = "HL7"
-	}
 	c.subjectNameIn = os.Getenv("NATS_INCOMING_SUBJECT_NAME")
 	if c.subjectNameIn == "" {
 		c.subjectNameIn = strings.Join([]string{c.streamName, "incoming"}, ".")
@@ -143,6 +147,18 @@ func logError(err error) {
 	if nil != err {
 		log.Print(err)
 	}
+}
+
+func checkStreamExists(subjectName string, js nats.JetStreamContext) error {
+	streamName := strings.Split(subjectName, ".")[0]
+	stream, err := js.StreamInfo(streamName)
+	if nil != err {
+		return err
+	}
+	if stream == nil {
+		return fmt.Errorf("stream %q does not exist", streamName)
+	}
+	return nil
 }
 
 func zipBatch(messages []nats.Msg) []byte {
