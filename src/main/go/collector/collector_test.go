@@ -14,6 +14,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -23,40 +24,79 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	setup()
 	code := m.Run()
-	shutdown()
 	os.Exit(code)
 }
 
-func setup() {
+func getTestConfig() config {
+	timeout, _ := time.ParseDuration("2s")
+	return config{
+		"nats://nats-main:422",
+		"test_nats_stream",
+		"test_stream.subject",
+		"test_stream.subject",
+		"",
+		uint64(10),
+		timeout,
+		"",
+	}
 }
 
-func shutdown() {
+func getTestMsgs(howMany int) []nats.Msg {
+	initialTime := time.Date(2020, 12, 20, 0, 30, 0, 0, time.Now().UTC().Location())
+	timeBetweenMsgs, _ := time.ParseDuration("1s")
+
+	testMsgs := make([]nats.Msg, 0)
+
+	for i := 1; i <= howMany; i++ {
+		testMsg := nats.NewMsg("test_stream.subject")
+		testMsg.Sub = new(nats.Subscription)
+		testMsg.Reply = "$JS.ACK.3.4.5.6.7.8.9"
+		testMsg.Data = []byte(fmt.Sprintf("Test Message %d", i))
+		md, err := testMsg.Metadata()
+		if nil != err {
+			log.Print(err)
+		}
+		md.Timestamp = initialTime.Add(timeBetweenMsgs * time.Duration(i) * time.Second)
+		testMsgs = append(testMsgs, *testMsg)
+	}
+
+	return testMsgs
 }
 
-func TestBatchLimit(t *testing.T) {
-
-}
-
-func TestBatchTimeout(t *testing.T) {
-
+func TestBatching(t *testing.T) {
+	c := getTestConfig()
+	msgs := getTestMsgs(int(c.batchSize) + 1)
+	msgBuffer := make(chan nats.Msg, c.batchSize*2)
+	batchChannel := make(chan batchAndLastMsg)
+	go collectBatches(c, msgBuffer, batchChannel)
+	for _, m := range msgs {
+		msgBuffer <- m
+	}
+	timer := time.AfterFunc(c.timeout*10, func() {
+		t.Errorf("batching should've timed out in %q, but took more than %q", c.timeout.String(), (c.timeout * 10).String())
+	}) //Don't wait too long!
+	for i := 1; i < 3; i++ {
+		batch := <-batchChannel
+		if i == 1 {
+			expectedData := fmt.Sprintf("Test Message %d", c.batchSize)
+			if string(batch.lastMsg.Data) != expectedData {
+				t.Errorf("last message was %q; expected %q", string(batch.lastMsg.Data), expectedData)
+			}
+		}
+		if i == 2 {
+			timer.Stop() // we did it!
+		}
+	}
 }
 
 func TestZip(t *testing.T) {
-	timeBetweenMsgs, _ := time.ParseDuration("1s")
-	testMsgs := make([]nats.Msg, 0)
-	testMsg1 := nats.NewMsg("test_stream.subject")
-	testMsg1.Sub = new(nats.Subscription)
-	testMsg1.Reply = "$JS.ACK.3.4.5.6.7.8.9"
-	md, err := testMsg1.Metadata()
-	if nil != err {
-		log.Print(err)
-	}
-	md.Timestamp = time.Now()
-	time.Sleep(timeBetweenMsgs)
+	testMsgs := getTestMsgs(3)
 	zippedMsgs := zipBatch(testMsgs)
-	log.Print(len(zippedMsgs))
+	if len(zippedMsgs) == 0 {
+		t.Error("zipped batch was empty")
+	}
+	// TODO: check zip contents
 }
 
 func TestConfig(t *testing.T) {
