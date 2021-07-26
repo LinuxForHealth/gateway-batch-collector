@@ -14,6 +14,8 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -88,6 +90,18 @@ func TestBatching(t *testing.T) {
 			timer.Stop() // we did it!
 		}
 	}
+	// Now we just make sure we don't get an extra batch
+	timer2 := time.After(c.timeout * 2)
+out:
+	for {
+		select {
+		case batch := <-batchChannel:
+			t.Logf("Extra batch, last msg was %q", string(batch.lastMsg.Data))
+			t.Error("Recieved 3 batches; expected 2")
+		case <-timer2:
+			break out
+		}
+	}
 }
 
 func TestZip(t *testing.T) {
@@ -96,7 +110,13 @@ func TestZip(t *testing.T) {
 	if len(zippedMsgs) == 0 {
 		t.Error("zipped batch was empty")
 	}
-	// TODO: check zip contents
+	zipReader, err := zip.NewReader(bytes.NewReader(zippedMsgs), int64(len(zippedMsgs)))
+	if err != nil {
+		t.Errorf("error when opening archive: %q", err)
+	}
+	if len(zipReader.File) != 3 {
+		t.Errorf("unzipped %d messages, expected 3", len(zipReader.File))
+	}
 }
 
 func TestConfig(t *testing.T) {
