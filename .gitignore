@@ -4,6 +4,5 @@
 .gogradle
 vendor
 build
-go.sum
 .settings/
 .project
