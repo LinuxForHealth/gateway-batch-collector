@@ -1,11 +1,8 @@
 /*******************************************************************************
- * IBM Watson Imaging Common Application Framework 3.0                         *
  *                                                                             *
  * IBM Confidential                                                            *
  *                                                                             *
- * OCO Source Materials                                                        *
- *                                                                             *
- * (C) Copyright IBM Corp. 2019                                                *
+ * (C) Copyright IBM Corp. 2021                                                *
  *                                                                             *
  * The source code for this program is not published or otherwise              *
  * divested of its trade secrets, irrespective of what has been                *
