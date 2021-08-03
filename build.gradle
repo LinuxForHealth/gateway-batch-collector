@@ -1,0 +1,127 @@
+/*******************************************************************************
+ *                                                                             *
+ * IBM Confidential                                                            *
+ *                                                                             *
+ * (C) Copyright IBM Corp. 2021                                                *
+ *                                                                             *
+ * The source code for this program is not published or otherwise              *
+ * divested of its trade secrets, irrespective of what has been                *
+ * deposited with the U.S. Copyright Office.                                   *
+ *******************************************************************************/
+
+buildscript {
+    repositories {
+        maven {
+            url "https://na.artifactory.swg-devops.com/artifactory/wh-imaging-external-maven-virtual"
+            credentials {
+                username = "${taasArtifactoryUsername}"
+                password = "${taasArtifactoryPassword}"
+            }
+            metadataSources {
+                mavenPom()
+                artifact()
+            }
+        }
+    }
+}
+plugins {
+    id "org.sonarqube" version "3.0"
+}
+
+group = 'com.ibm.watson.health.pa'
+version = '0.0.1'
+description = """CDP Gateway Batch Collector"""
+
+sonarqube {
+    properties {
+        property "sonar.projectBaseDir", System.getProperty("user.dir")+'/src/main/go'
+        property "sonar.sources", '.'
+        property "sonar.go.coverage.reportPaths", '../../../build/reports/test/cover.out'
+        property "sonar.exclusions", '**/*_test.go'
+        property "sonar.tests", '.'
+        property "sonar.test.inclusions", '**/*_test.go'
+        property "sonar.go.tests.reportPaths", '../../../build/reports/test/test-report.out'
+    }
+}
+
+task goTestPrepare (type: Exec) {
+    commandLine 'mkdir', '-p', './build/reports/test'
+}
+
+task goTest(type: Exec) {
+    doFirst {
+        standardOutput = new org.apache.tools.ant.util.TeeOutputStream(
+        new FileOutputStream("build/reports/test/test-report.out"), System.out);
+    }
+    def current_path = System.getProperty("user.dir")
+    workingDir 'src/main/go'
+    commandLine 'go', 'test', '-v', './...', '-coverprofile='+current_path+'/build/reports/test/cover.out', '-json'
+}
+
+task goLint(type: Exec) {
+    workingDir 'src/main/go'
+    commandLine 'golint', '.'
+}
+
+task goFmt(type: Exec){
+    workingDir 'src/main/go'
+    commandLine 'go', 'fmt', '.'
+}
+
+task goClean(type: Exec) {
+    commandLine 'rm', '-rf', 'build'
+}
+
+/**
+ * This task builds for the running OS and arch by default!
+ * The executable will not run in a linux-based container if built on mac
+ * without setting GOOS=linux and GOARCH=amd64 or other correct arch
+ * Use goBuildLinux64 for convenience when building for docker on mac
+ */
+task goBuild(type: Exec) {
+    def current_path = System.getProperty("user.dir")
+    workingDir 'src/main/go/collector'
+    commandLine 'go', 'build', '-o', current_path+'/build/'
+}
+
+task goBuildLinux64(type: Exec) {
+    environment "GOOS", "linux"
+    environment "GOARCH", "amd64"
+    def current_path = System.getProperty("user.dir")
+    workingDir 'src/main/go/collector'
+    commandLine 'go', 'build', '-o', current_path+'/build/'
+}
+
+task dockerBuild(type: Exec) {
+    commandLine 'docker', 'build', '.', '-t', 'whpa-cdp-gateway-batch-collector:latest'
+}
+
+task goPublish (type: Exec) {
+    workingDir 'src/main/go'
+    def taasArtifactoryUsername = "${taasArtifactoryUsername}"
+    def taasArtifactoryPassword = "${taasArtifactoryPassword}"
+    commandLine 'jfrog', 'rt', 'go-publish', 'wh-imaging-go-local', 'v3.2.0', '--url=https://na.artifactory.swg-devops.com/artifactory', '--user='+taasArtifactoryUsername, '--password='+taasArtifactoryPassword
+}
+
+task build {}
+task test {}
+task coverage {}
+task fmt {}
+task lint {}
+task clean {}
+task publish {}
+
+project.tasks.goTest.dependsOn project.tasks.goTestPrepare
+project.tasks.goBuild.dependsOn project.tasks.goTest
+project.tasks.build.dependsOn project.tasks.test
+
+project.tasks.goBuildLinux64.dependsOn project.tasks.goTest
+project.tasks.dockerBuild.dependsOn project.tasks.goBuildLinux64
+
+project.tasks.build.finalizedBy project.tasks.goBuild
+project.tasks.test.finalizedBy project.tasks.goTest
+project.tasks.coverage.finalizedBy project.tasks.goTest
+project.tasks.lint.finalizedBy project.tasks.goLint
+project.tasks.clean.finalizedBy project.tasks.goClean
+project.tasks.fmt.finalizedBy project.tasks.goFmt
+project.tasks.publish.finalizedBy project.tasks.goPublish
