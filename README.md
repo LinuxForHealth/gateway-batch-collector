@@ -15,7 +15,20 @@ are `M` messages have been received such that 0 < `M` < `N`
 
 ## Docker Build
 
-```gradle dockerBuild```
+Ensure that you log into docker first with the following command:
+
+`docker login wh-imaging-cdp-docker-local.artifactory.swg-devops.com`
+
+and then run the docker build command:
+
+`gradle dockerBuild`
+
+If the build fails then check that the gradle.properties file exists, if you do not have this then you will need to create this file and populate with the following:
+
+```
+taasArtifactoryUsername=<taasArtifactoryUsername>
+taasArtifactoryPassword=<taasArtifactoryPassword>
+```
 
 The `dockerBuild` gradle task will cross compile the executable for linux/amd64,
 and build the `Dockerfile`, tagging `whpa-cdp-gateway-batch-collector:latest`.
@@ -23,11 +36,11 @@ and build the `Dockerfile`, tagging `whpa-cdp-gateway-batch-collector:latest`.
 If you want to diy it for some reason, the following will work, but be sure to have
 built a linux binary beforehand and placed it at `build/collector`
 
-```docker build . -t whpa-cdp-gateway-batch-collector:latest```
+`docker build . -t whpa-cdp-gateway-batch-collector:latest`
 
 ## Executable Build
 
-```gradle goBuild```
+`gradle goBuild`
 
 Builds a native executable for the current platform, unless you set `GOOS` and/or `GOARCH`
 environment variables. `gradle goBuildLinux64` is provided as a convenience task to create
@@ -35,7 +48,7 @@ a linux/amd64 build on mac or windows
 
 ## Local Dev/Test Deployment
 
-```docker-compose up```
+`docker-compose up`
 
 will bring up a single nats container with jetstream enabled and a running batch collector
 connected to the same nats instance. Ports are forwarded so that the nats cli utility can
@@ -72,9 +85,18 @@ containers and recreate them when making changes related to consumer configurati
 
 The nats cli provides an easy way to test the batch and timeout features by publishing with `nats pub`.
 
+If you have not used the nats cli previously then you will need to install using the following commands (mac):
+
+```
+brew tap nats-io/nats-tools
+brew install nats-io/nats-tools/nats
+```
+
+Then you can use the following command to send messages:
+
 ```
 nats pub HL7.incoming "message {{.Count}} @ {{.TimeStamp}}" --count=10101
 ```
 
 The above publishes 10,101 messages to `HL7.incoming`. With a batch size of 100 and a 60s timeout, you
-should see 101 full batches right away, and then a single message 60 seconds later 
+should see 101 full batches right away, and then a single message 60 seconds later
