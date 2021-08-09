@@ -100,7 +100,7 @@ task goPublish (type: Exec) {
     workingDir 'src/main/go'
     def taasArtifactoryUsername = "${taasArtifactoryUsername}"
     def taasArtifactoryPassword = "${taasArtifactoryPassword}"
-    commandLine 'jfrog', 'rt', 'go-publish', 'wh-imaging-go-local', 'v3.2.0', '--url=https://na.artifactory.swg-devops.com/artifactory', '--user='+taasArtifactoryUsername, '--password='+taasArtifactoryPassword
+    commandLine 'jfrog', 'rt', 'go-publish', 'wh-imaging-go-local', 'v0.0.1', '--url=https://na.artifactory.swg-devops.com/artifactory', '--user='+taasArtifactoryUsername, '--password='+taasArtifactoryPassword
 }
 
 task build {}
