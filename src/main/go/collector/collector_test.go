@@ -31,13 +31,10 @@ func getTestConfig() config {
 	timeout, _ := time.ParseDuration("2s")
 	return config{
 		"nats://nats-main:422",
-		"test_nats_stream",
 		"test_stream.subject",
 		"test_stream.subject",
-		"",
 		uint64(10),
 		timeout,
-		"",
 	}
 }
 
@@ -128,21 +125,15 @@ func TestConfig(t *testing.T) {
 	const msg_batch_size_uint = uint64(1000000)
 	const nats_durable_name = "so_durable"
 	os.Setenv("NATS_URL", nats_url)
-	os.Setenv("NATS_STREAM_NAME", nats_stream_name)
 	os.Setenv("NATS_INCOMING_SUBJECT_NAME", nats_incoming_subject)
 	os.Setenv("NATS_OUTGOING_SUBJECT_NAME", nats_outgoing_subject)
-	os.Setenv("NATS_QUEUE_NAME", nats_queue_name)
 	os.Setenv("MSG_BATCH_TIMEOUT", msg_batch_timeout)
 	os.Setenv("MSG_BATCH_SIZE", msg_batch_size)
-	os.Setenv("NATS_DURABLE_NAME", nats_durable_name)
 
 	config := readConfigFromEnv()
 
 	if config.natsUrl != nats_url {
 		t.Errorf("config.natsUrl = %q; expected %q", config.natsUrl, nats_url)
-	}
-	if config.streamName != nats_stream_name {
-		t.Errorf("config.streamName = %q; expected %q", config.streamName, nats_stream_name)
 	}
 	if config.subjectNameIn != nats_incoming_subject {
 		t.Errorf("config.subjectNameIn = %q; expected %q", config.subjectNameIn, nats_incoming_subject)
@@ -150,16 +141,10 @@ func TestConfig(t *testing.T) {
 	if config.subjectNameOut != nats_outgoing_subject {
 		t.Errorf("config.subjectNameIn = %q; expected %q", config.subjectNameIn, nats_outgoing_subject)
 	}
-	if config.queueName != nats_queue_name {
-		t.Errorf("config.queueName = %q; expected %q", config.queueName, nats_queue_name)
-	}
 	if config.batchSize != msg_batch_size_uint {
 		t.Errorf("config.batchSize = %d; expected %d", config.batchSize, msg_batch_size_uint)
 	}
 	if config.timeout != timeout {
 		t.Errorf("config.timeout = %q; expected %q", config.timeout.String(), timeout.String())
-	}
-	if config.durableName != nats_durable_name {
-		t.Errorf("config.durableName = %q; expected %q", config.durableName, nats_durable_name)
 	}
 }

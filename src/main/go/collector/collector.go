@@ -27,38 +27,34 @@ import (
 func main() {
 	c := readConfigFromEnv()
 	log.Printf(
-		"Loaded Configuration:\n\tNATS URL: %q\n\tStream Name: %q\n\tIncoming Subject: %q\n\tOutgoing Subject%q\n\tQueue Name: %q\n\tBatch Size: %d\n\tTimeout: %q\n\tDurable Name: %q",
-		c.natsUrl, c.streamName, c.subjectNameIn, c.subjectNameOut, c.queueName, c.batchSize, c.timeout.String(), c.durableName)
+		"Loaded Configuration:\n\tNATS URL: %q\n\tIncoming Subject: %q\n\tOutgoing Subject%q\n\tBatch Size: %d\n\tTimeout: %q",
+		c.natsUrl, c.subjectNameIn, c.subjectNameOut, c.batchSize, c.timeout.String())
 
 	nc, err := nats.Connect(c.natsUrl)
 	fatalError(err)
 	defer nc.Close()
 	js, err := nc.JetStream(nats.PublishAsyncMaxPending(256))
 	fatalError(err)
-	if c.streamName != "" {
-		stream, err := js.StreamInfo(c.streamName)
-		logError(err)
-		if stream == nil {
-			log.Printf("creating stream %q and subjects %q and %q", c.streamName, c.subjectNameIn, c.subjectNameOut)
-			_, err = js.AddStream(&nats.StreamConfig{
-				Name:     c.streamName,
-				Subjects: []string{c.subjectNameIn, c.subjectNameOut},
-			})
-			fatalError(err)
-		}
-	}
-	err = checkStreamExists(c.subjectNameIn, js)
-	fatalError(err)
-	err = checkStreamExists(c.subjectNameOut, js)
-	fatalError(err)
 	msgBuffer := make(chan nats.Msg, c.batchSize*2)
-	js.Subscribe(c.subjectNameIn, func(msg *nats.Msg) {
+
+	stream, err := js.ConsumerInfo("HL7", "MESSAGES")
+	fatalError(err)
+
+	if stream.NumAckPending > 0 {
+		log.Printf("There are %d pending ACKs for the consumer. We need to wait %q for all pending acks to expire", stream.NumAckPending, stream.Config.AckWait)
+		time.Sleep(stream.Config.AckWait)
+		log.Printf("Wait over, start to process messages")
+	}
+
+	nc.Subscribe(c.subjectNameIn, func(msg *nats.Msg) {
 		msgBuffer <- *msg
-	}, nats.ManualAck(), nats.AckAll(), nats.MaxAckPending(int(c.batchSize)+1), nats.AckWait(c.timeout*2), nats.Durable(c.durableName))
+	})
+
 	batchChannel := make(chan batchAndLastMsg)
 	go collectBatches(c, msgBuffer, batchChannel)
 	for {
 		batchAndMsg := <-batchChannel
+		log.Print("sending")
 		pubAck, err := js.Publish(c.subjectNameOut, batchAndMsg.batch)
 		logError(err)
 		if err == nil {
@@ -71,13 +67,10 @@ func main() {
 
 type config struct {
 	natsUrl        string
-	streamName     string
 	subjectNameIn  string
 	subjectNameOut string
-	queueName      string
 	batchSize      uint64
 	timeout        time.Duration
-	durableName    string
 }
 
 func readConfigFromEnv() config {
@@ -86,25 +79,23 @@ func readConfigFromEnv() config {
 	if c.natsUrl == "" {
 		c.natsUrl = nats.DefaultURL
 	}
-	c.streamName = os.Getenv("NATS_STREAM_NAME")
 	c.subjectNameIn = os.Getenv("NATS_INCOMING_SUBJECT_NAME")
 	if c.subjectNameIn == "" {
-		c.subjectNameIn = strings.Join([]string{c.streamName, "incoming"}, ".")
+		c.subjectNameIn = "HL7.INCOMING"
 	}
 	c.subjectNameOut = os.Getenv("NATS_OUTGOING_SUBJECT_NAME")
 	if c.subjectNameOut == "" {
-		c.subjectNameOut = strings.Join([]string{c.streamName, "batched"}, ".")
+		c.subjectNameOut = "HL7STR.ENCRYPTED_BATCHES"
 	}
-	c.queueName = os.Getenv("NATS_QUEUE_NAME")
 	batchSizeEnvVar := os.Getenv("MSG_BATCH_SIZE")
-	c.batchSize = uint64(100) // we just keep using 100 as an example
+	c.batchSize = uint64(10) // we just keep using 100 as an example
 	if batchSizeEnvVar != "" {
 		parsedEnvVar, err := strconv.ParseUint(batchSizeEnvVar, 10, 64)
 		fatalError(err)
 		c.batchSize = parsedEnvVar
 	}
 	timeoutEnvVar := os.Getenv("MSG_BATCH_TIMEOUT")
-	defaultTimeout, err := time.ParseDuration("60s")
+	defaultTimeout, err := time.ParseDuration("9s")
 	fatalError(err)
 	c.timeout = defaultTimeout
 	if batchSizeEnvVar != "" {
@@ -112,7 +103,6 @@ func readConfigFromEnv() config {
 		fatalError(err)
 		c.timeout = parsedEnvVar
 	}
-	c.durableName = os.Getenv("NATS_DURABLE_NAME")
 	return *c
 }
 
@@ -174,11 +164,11 @@ func collectBatches(c config, msgBuffer chan nats.Msg, output chan batchAndLastM
 					log.Printf("%d messages recieved. Proceeding with full batch", len(batch))
 					break out
 				}
-				t = time.After(c.timeout)
 			case <-t:
 				if len(batch) > 0 {
 					log.Printf("Batch timeout exceeded. Proceeding with %d messages", len(batch))
 					break out
+
 				}
 				log.Printf("No messages in %q, queue is empty", c.timeout.String())
 				t = time.After(c.timeout)
