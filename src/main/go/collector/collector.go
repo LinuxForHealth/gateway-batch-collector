@@ -73,27 +73,27 @@ type config struct {
 
 func readConfigFromEnv() config {
 	c := new(config)
-	c.natsUrl = os.Getenv("NATS_URL")
+	c.natsUrl = os.Getenv("NATS_SERVER_URL")
 	if c.natsUrl == "" {
 		c.natsUrl = nats.DefaultURL
 	}
-	c.subjectNameIn = os.Getenv("NATS_INCOMING_SUBJECT_NAME")
+	c.subjectNameIn = os.Getenv("NATS_INCOMING_SUBJECT")
 	if c.subjectNameIn == "" {
-		c.subjectNameIn = "HL7.INCOMING"
+		c.subjectNameIn = "HL7MESSAGES"
 	}
-	c.subjectNameOut = os.Getenv("NATS_OUTGOING_SUBJECT_NAME")
+	c.subjectNameOut = os.Getenv("NATS_OUTGOING_SUBJECT")
 	if c.subjectNameOut == "" {
-		c.subjectNameOut = "HL7STR.ENCRYPTED_BATCHES"
+		c.subjectNameOut = "HL7.ZIPPED_BATCHES"
 	}
 	batchSizeEnvVar := os.Getenv("MSG_BATCH_SIZE")
-	c.batchSize = uint64(10) // we just keep using 100 as an example
+	c.batchSize = uint64(1000)
 	if batchSizeEnvVar != "" {
 		parsedEnvVar, err := strconv.ParseUint(batchSizeEnvVar, 10, 64)
 		fatalError(err)
 		c.batchSize = parsedEnvVar
 	}
 	timeoutEnvVar := os.Getenv("MSG_BATCH_TIMEOUT")
-	defaultTimeout, err := time.ParseDuration("9s")
+	defaultTimeout, err := time.ParseDuration("60s")
 	fatalError(err)
 	c.timeout = defaultTimeout
 	if batchSizeEnvVar != "" {

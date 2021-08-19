@@ -124,9 +124,9 @@ func TestConfig(t *testing.T) {
 	const msg_batch_size = "1000000"
 	const msg_batch_size_uint = uint64(1000000)
 	const nats_durable_name = "so_durable"
-	os.Setenv("NATS_URL", nats_url)
-	os.Setenv("NATS_INCOMING_SUBJECT_NAME", nats_incoming_subject)
-	os.Setenv("NATS_OUTGOING_SUBJECT_NAME", nats_outgoing_subject)
+	os.Setenv("NATS_SERVER_URL", nats_url)
+	os.Setenv("NATS_INCOMING_SUBJECT", nats_incoming_subject)
+	os.Setenv("NATS_OUTGOING_SUBJECT", nats_outgoing_subject)
 	os.Setenv("MSG_BATCH_TIMEOUT", msg_batch_timeout)
 	os.Setenv("MSG_BATCH_SIZE", msg_batch_size)
 
@@ -139,7 +139,7 @@ func TestConfig(t *testing.T) {
 		t.Errorf("config.subjectNameIn = %q; expected %q", config.subjectNameIn, nats_incoming_subject)
 	}
 	if config.subjectNameOut != nats_outgoing_subject {
-		t.Errorf("config.subjectNameIn = %q; expected %q", config.subjectNameIn, nats_outgoing_subject)
+		t.Errorf("config.subjectNameOut = %q; expected %q", config.subjectNameOut, nats_outgoing_subject)
 	}
 	if config.batchSize != msg_batch_size_uint {
 		t.Errorf("config.batchSize = %d; expected %d", config.batchSize, msg_batch_size_uint)
