@@ -14,11 +14,9 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -118,18 +116,6 @@ func logError(err error) {
 	}
 }
 
-func checkStreamExists(subjectName string, js nats.JetStreamContext) error {
-	streamName := strings.Split(subjectName, ".")[0]
-	stream, err := js.StreamInfo(streamName)
-	if nil != err {
-		return err
-	}
-	if stream == nil {
-		return fmt.Errorf("stream %q does not exist", streamName)
-	}
-	return nil
-}
-
 func zipBatch(messages []nats.Msg) []byte {
 	b := new(bytes.Buffer)
 	w := zip.NewWriter(b)
@@ -168,7 +154,6 @@ func collectBatches(c config, msgBuffer chan nats.Msg, output chan batchAndLastM
 				if len(batch) > 0 {
 					log.Printf("Batch timeout exceeded. Proceeding with %d messages", len(batch))
 					break out
-
 				}
 				log.Printf("No messages in %q, queue is empty", c.timeout.String())
 				t = time.After(c.timeout)
