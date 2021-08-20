@@ -1,10 +1,3 @@
-# TODO Before Open Source Release
-
-- [ ] switch to docker image available to public
-- [ ] remove dependency on TaaS artifactory
-- [ ] module name from `github.ibm.com/..` to `github.com/..`
-- [ ] LICENSE, CONTRIBUTING, and code of conduct appropriate for destination
-
 # CDP Gateway - Batch Collector
 
 The batch collector is a NATS consumer that consumes all messages on a given subject, zips up batches of messages, and forwards the zipped messages to another subject. It is used to reduce the chattiness of streams that are going to be forwarded along to remote environments, such as over the public internet to a cloud storage provider.

@@ -1,4 +1,4 @@
-module github.ibm.com/WH-Provider-Analytics/whpa-cdp-gateway-batch-collector
+module github.com/LinuxForHealth/gateway-batch-collector
 
 go 1.16
 
