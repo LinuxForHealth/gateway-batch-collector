@@ -26,14 +26,15 @@ services:
     depends_on: 
       - nats-main
 
-  #batch-collector:
-  #  image: wh-imaging-dev-docker-local.artifactory.swg-devops.com/whpa-cdp-gateway-batch-collector:latest
-  #  environment:
-  #    NATS_URL: "nats://nats-main:4222"
-  #    NATS_INCOMING_SUBJECT_NAME: "HL7.INCOMING"
-  #    NATS_OUTGOING_SUBJECT_NAME: "HL7.ZIPPED.BATCHES"
-  #    MSG_BATCH_SIZE: "10"
-  #    MSG_BATCH_TIMEOUT: "30s"
-  #    NATS_DURABLE_NAME: "batchCollector"
-  #  depends_on:
-  #    - nats-tools
+  batch-collector:
+    build:
+      context: ../.
+      dockerfile: Dockerfile
+    environment:
+      NATS_SERVER_URL: "nats://nats-main:4222"
+      NATS_INCOMING_SUBJECT: "HL7MESSAGES"
+      NATS_OUTGOING_SUBJECT_NAME: "HL7.ZIPPED_BATCHES"
+      MSG_BATCH_SIZE: "100"
+      MSG_BATCH_TIMEOUT: "60s"
+    depends_on:
+      - nats-tools

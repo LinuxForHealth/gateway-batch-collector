@@ -1,29 +1,3 @@
-/*******************************************************************************
- *                                                                             *
- * IBM Confidential                                                            *
- *                                                                             *
- * (C) Copyright IBM Corp. 2021                                                *
- *                                                                             *
- * The source code for this program is not published or otherwise              *
- * divested of its trade secrets, irrespective of what has been                *
- * deposited with the U.S. Copyright Office.                                   *
- *******************************************************************************/
-
-buildscript {
-    repositories {
-        maven {
-            url "https://na.artifactory.swg-devops.com/artifactory/wh-imaging-external-maven-virtual"
-            credentials {
-                username = "${taasArtifactoryUsername}"
-                password = "${taasArtifactoryPassword}"
-            }
-            metadataSources {
-                mavenPom()
-                artifact()
-            }
-        }
-    }
-}
 plugins {
     id "org.sonarqube" version "3.0"
 }
@@ -93,14 +67,7 @@ task goBuildLinux64(type: Exec) {
 }
 
 task dockerBuild(type: Exec) {
-    commandLine 'docker', 'build', '.', '-t', 'whpa-cdp-gateway-batch-collector:latest'
-}
-
-task goPublish (type: Exec) {
-    workingDir 'src/main/go'
-    def taasArtifactoryUsername = "${taasArtifactoryUsername}"
-    def taasArtifactoryPassword = "${taasArtifactoryPassword}"
-    commandLine 'jfrog', 'rt', 'go-publish', 'wh-imaging-go-local', 'v0.0.1', '--url=https://na.artifactory.swg-devops.com/artifactory', '--user='+taasArtifactoryUsername, '--password='+taasArtifactoryPassword
+    commandLine 'docker', 'build', '.', '-t', 'gateway-batch-collector:latest'
 }
 
 task build {}
@@ -109,7 +76,6 @@ task coverage {}
 task fmt {}
 task lint {}
 task clean {}
-task publish {}
 
 project.tasks.goTest.dependsOn project.tasks.goTestPrepare
 project.tasks.goBuild.dependsOn project.tasks.goTest
@@ -124,4 +90,3 @@ project.tasks.coverage.finalizedBy project.tasks.goTest
 project.tasks.lint.finalizedBy project.tasks.goLint
 project.tasks.clean.finalizedBy project.tasks.goClean
 project.tasks.fmt.finalizedBy project.tasks.goFmt
-project.tasks.publish.finalizedBy project.tasks.goPublish
